@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -51,6 +52,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextDecoration
@@ -58,6 +61,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import com.village.generalstore.domain.model.Product
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -68,17 +73,55 @@ fun InventoryScreen(
 ) {
     val products by viewModel.products.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
+    val currentStore by viewModel.currentStore.collectAsState()
 
     var showAddDialog by remember { mutableStateOf(false) }
     var productToEdit by remember { mutableStateOf<Product?>(null) }
+    var scannedBarcode by remember { mutableStateOf<String?>(null) }
+
+    val context = LocalContext.current
+    val scannerOptions = GmsBarcodeScannerOptions.Builder()
+        .setBarcodeFormats(com.google.mlkit.vision.barcode.common.Barcode.FORMAT_ALL_FORMATS)
+        .build()
+    val scanner = GmsBarcodeScanning.getClient(context, scannerOptions)
+
+    fun startScanning() {
+        scanner.startScan()
+            .addOnSuccessListener { barcode ->
+                val rawValue = barcode.rawValue
+                if (rawValue != null) {
+                    viewModel.scanBarcode(rawValue) { foundProduct ->
+                        if (foundProduct != null) {
+                            productToEdit = foundProduct
+                        } else {
+                            scannedBarcode = rawValue
+                            showAddDialog = true
+                        }
+                    }
+                }
+            }
+            .addOnFailureListener {
+                // Handle failure
+            }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Inventory Management", fontWeight = FontWeight.Bold) },
+                title = { 
+                    Column {
+                        Text(currentStore?.name ?: "Inventory Management", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                        Text("Inventory Management", fontSize = 11.sp, fontWeight = FontWeight.Normal)
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { startScanning() }) {
+                        Icon(Icons.Default.Search, contentDescription = "Scan Barcode")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -141,10 +184,15 @@ fun InventoryScreen(
             // Dialog for Add Product
             if (showAddDialog) {
                 ProductEditDialog(
-                    onDismiss = { showAddDialog = false },
+                    initialBarcode = scannedBarcode,
+                    onDismiss = { 
+                        showAddDialog = false
+                        scannedBarcode = null
+                    },
                     onConfirm = { product ->
                         viewModel.addOrUpdateProduct(product)
                         showAddDialog = false
+                        scannedBarcode = null
                     }
                 )
             }
@@ -307,6 +355,7 @@ fun InventoryItemRow(
 @Composable
 fun ProductEditDialog(
     product: Product? = null,
+    initialBarcode: String? = null,
     onDismiss: () -> Unit,
     onConfirm: (Product) -> Unit
 ) {
@@ -318,6 +367,7 @@ fun ProductEditDialog(
     var unit by remember { mutableStateOf(product?.unit ?: "pcs") }
     var lowStockLimit by remember { mutableStateOf(product?.lowStockLimit?.toString() ?: "5") }
     var imageUrl by remember { mutableStateOf(product?.imageUrl ?: "") }
+    var barcode by remember { mutableStateOf(product?.barcode ?: initialBarcode ?: "") }
 
     var errorText by remember { mutableStateOf<String?>(null) }
 
@@ -424,6 +474,32 @@ fun ProductEditDialog(
                     )
                 }
 
+                item {
+                    val context = LocalContext.current
+                    val scannerOptions = GmsBarcodeScannerOptions.Builder()
+                        .setBarcodeFormats(com.google.mlkit.vision.barcode.common.Barcode.FORMAT_ALL_FORMATS)
+                        .build()
+                    val scanner = GmsBarcodeScanning.getClient(context, scannerOptions)
+
+                    OutlinedTextField(
+                        value = barcode,
+                        onValueChange = { barcode = it },
+                        label = { Text("Barcode") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        trailingIcon = {
+                            IconButton(onClick = {
+                                scanner.startScan()
+                                    .addOnSuccessListener { result ->
+                                        result.rawValue?.let { barcode = it }
+                                    }
+                            }) {
+                                Icon(Icons.Default.Search, contentDescription = "Scan")
+                            }
+                        }
+                    )
+                }
+
                 if (errorText != null) {
                     item {
                         Text(
@@ -469,7 +545,8 @@ fun ProductEditDialog(
                                             stock = parsedStock,
                                             unit = unit.trim().lowercase(),
                                             lowStockLimit = parsedLimit,
-                                            imageUrl = imageUrl.trim()
+                                            imageUrl = imageUrl.trim(),
+                                            barcode = barcode.ifBlank { null }
                                         )
                                         onConfirm(newProduct)
                                     }

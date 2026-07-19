@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.village.generalstore.domain.model.Order
 import com.village.generalstore.domain.model.OrderStatus
 import com.village.generalstore.domain.model.Product
+import com.village.generalstore.domain.model.Store
 import com.village.generalstore.domain.repository.StoreRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineScope
@@ -13,6 +14,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -22,11 +26,28 @@ class SellerViewModel @Inject constructor(
     private val repository: StoreRepository
 ) : ViewModel() {
 
-    val products: StateFlow<List<Product>> = repository.getProducts()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    private val _currentStoreId = MutableStateFlow<String?>(null)
+    val currentStoreId = _currentStoreId.asStateFlow()
 
-    val orders: StateFlow<List<Order>> = repository.getOrders()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val currentStore: StateFlow<Store?> = _currentStoreId.flatMapLatest { storeId ->
+        if (storeId == null) flowOf(null)
+        else repository.getStores().map { it.find { s -> s.id == storeId } }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val products: StateFlow<List<Product>> = _currentStoreId.flatMapLatest { storeId ->
+        repository.getProducts(storeId)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val orders: StateFlow<List<Order>> = _currentStoreId.flatMapLatest { storeId ->
+        repository.getOrders(storeId)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun setStoreId(storeId: String) {
+        _currentStoreId.value = storeId
+    }
 
     private val _uiState = MutableStateFlow(SellerUiState())
     val uiState = _uiState.asStateFlow()
@@ -44,9 +65,10 @@ class SellerViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardMetrics())
 
     fun addOrUpdateProduct(product: Product) {
+        val storeId = _currentStoreId.value ?: return
         viewModelScope.launch {
             try {
-                repository.upsertProduct(product)
+                repository.upsertProduct(product.copy(storeId = storeId))
                 _uiState.value = _uiState.value.copy(successMessage = "Product saved successfully")
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(errorMessage = e.message ?: "Failed to save product")
@@ -87,6 +109,13 @@ class SellerViewModel @Inject constructor(
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(errorMessage = e.message ?: "Failed to update order status")
             }
+        }
+    }
+
+    fun scanBarcode(barcode: String, onProductFound: (Product?) -> Unit) {
+        viewModelScope.launch {
+            val product = repository.getProductByBarcode(barcode)
+            onProductFound(product)
         }
     }
 

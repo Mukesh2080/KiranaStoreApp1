@@ -81,6 +81,7 @@ fun DashboardScreen(
 ) {
     val orders by viewModel.orders.collectAsState()
     val metrics by viewModel.dashboardMetrics.collectAsState()
+    val currentStore by viewModel.currentStore.collectAsState()
 
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabTitles = listOf("Pending", "Preparing & Ready", "Completed", "Cancelled")
@@ -98,7 +99,14 @@ fun DashboardScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Seller Dashboard", fontWeight = FontWeight.Bold) },
+                title = { 
+                    Column {
+                        Text(currentStore?.name ?: "Seller Dashboard", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                        if (currentStore != null) {
+                            Text("Store ID: ${currentStore?.id}", fontSize = 11.sp, fontWeight = FontWeight.Normal)
+                        }
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")

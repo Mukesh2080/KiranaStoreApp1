@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.village.generalstore.domain.model.CartItem
 import com.village.generalstore.domain.model.Product
+import com.village.generalstore.domain.model.Store
 import com.village.generalstore.domain.repository.StoreRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -11,6 +12,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -21,11 +23,23 @@ class CustomerViewModel @Inject constructor(
     private val repository: StoreRepository
 ) : ViewModel() {
 
-    val products: StateFlow<List<Product>> = repository.getProducts()
+    private val _selectedStoreId = MutableStateFlow<String?>(null)
+    val selectedStoreId = _selectedStoreId.asStateFlow()
+
+    val stores: StateFlow<List<Store>> = repository.getStores()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val products: StateFlow<List<Product>> = _selectedStoreId.flatMapLatest { storeId ->
+        repository.getProducts(storeId)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val cartItems: StateFlow<List<CartItem>> = repository.getCartItems()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun selectStore(storeId: String) {
+        _selectedStoreId.value = storeId
+    }
 
     // Cart calculations
     val cartSummary: StateFlow<CartSummary> = cartItems.map { items ->
@@ -71,6 +85,7 @@ class CustomerViewModel @Inject constructor(
     }
 
     fun placeOrder(customerName: String, customerPhone: String, isDelivery: Boolean) {
+        val storeId = _selectedStoreId.value ?: return
         if (customerName.isBlank() || customerPhone.isBlank()) {
             _orderState.value = OrderPlacementState.Error("Name and Phone number are required")
             return
@@ -78,7 +93,7 @@ class CustomerViewModel @Inject constructor(
         viewModelScope.launch {
             _orderState.value = OrderPlacementState.Loading
             try {
-                val orderId = repository.placeOrder(customerName, customerPhone, isDelivery)
+                val orderId = repository.placeOrder(storeId, customerName, customerPhone, isDelivery)
                 if (orderId.isNotEmpty()) {
                     _orderState.value = OrderPlacementState.Success(orderId)
                 } else {

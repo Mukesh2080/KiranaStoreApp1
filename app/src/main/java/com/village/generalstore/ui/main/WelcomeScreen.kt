@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -36,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -45,14 +47,34 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.village.generalstore.ui.customer.CustomerViewModel
+
 @Composable
 fun WelcomeScreen(
     onNavigateToCustomer: () -> Unit,
-    onNavigateToSeller: () -> Unit
+    onNavigateToSeller: (String) -> Unit
 ) {
+    val customerViewModel: CustomerViewModel = hiltViewModel()
+    val stores by customerViewModel.stores.collectAsState()
+
     var showSellerLogin by remember { mutableStateOf(false) }
+    var showRegistration by remember { mutableStateOf(false) }
+    var phoneInput by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var loginError by remember { mutableStateOf<String?>(null) }
+
+    // Registration States
+    var regStoreName by remember { mutableStateOf("") }
+    var regOwnerName by remember { mutableStateOf("") }
+    var regAddress by remember { mutableStateOf("") }
+    var regPhone by remember { mutableStateOf("") }
+    var regImageUrl by remember { mutableStateOf("") }
+    var regPasscode by remember { mutableStateOf("") }
+    var regResult by remember { mutableStateOf<String?>(null) }
+    var isRegistering by remember { mutableStateOf(false) }
     
     var isVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -122,7 +144,7 @@ fun WelcomeScreen(
 
                 Spacer(modifier = Modifier.height(40.dp))
 
-                if (!showSellerLogin) {
+                if (!showSellerLogin && !showRegistration) {
                     // Customer Mode Button (Premium styling)
                     Button(
                         onClick = onNavigateToCustomer,
@@ -170,6 +192,82 @@ fun WelcomeScreen(
                             fontWeight = FontWeight.Medium
                         )
                     }
+                    
+                    TextButton(onClick = { showRegistration = true }) {
+                        Text("Register New Store")
+                    }
+                } else if (showRegistration) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                    ) {
+                        LazyColumn(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            item { Text("Register Your Store", fontSize = 20.sp, fontWeight = FontWeight.Bold) }
+                            
+                            item { OutlinedTextField(value = regStoreName, onValueChange = { regStoreName = it }, label = { Text("Store Name (Mandatory)") }, modifier = Modifier.fillMaxWidth()) }
+                            item { OutlinedTextField(value = regOwnerName, onValueChange = { regOwnerName = it }, label = { Text("Owner Name") }, modifier = Modifier.fillMaxWidth()) }
+                            item { OutlinedTextField(value = regPhone, onValueChange = { regPhone = it }, label = { Text("Mobile Number (Mandatory)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), modifier = Modifier.fillMaxWidth()) }
+                            item { OutlinedTextField(value = regAddress, onValueChange = { regAddress = it }, label = { Text("Store Location / Address") }, modifier = Modifier.fillMaxWidth()) }
+                            item { OutlinedTextField(value = regImageUrl, onValueChange = { regImageUrl = it }, label = { Text("Store Image URL") }, modifier = Modifier.fillMaxWidth()) }
+                            item { OutlinedTextField(value = regPasscode, onValueChange = { regPasscode = it }, label = { Text("Set 4-Digit Passcode") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword), modifier = Modifier.fillMaxWidth()) }
+                            
+                            if (regResult != null) {
+                                item { Text(regResult!!, color = if (regResult!!.startsWith("Registered")) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp), textAlign = TextAlign.Center) }
+                            }
+                            
+                            item {
+                                val scope = androidx.compose.runtime.rememberCoroutineScope()
+                                val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                                val firebaseService = com.village.generalstore.data.remote.FirebaseService(firestore)
+                                
+                                Button(
+                                    onClick = {
+                                        if (regStoreName.isBlank() || regPhone.isBlank() || regPasscode.isBlank()) {
+                                            regResult = "Store Name, Phone, and Passcode are required"
+                                            return@Button
+                                        }
+                                        if (isRegistering) return@Button
+                                        isRegistering = true
+                                        
+                                        scope.launch {
+                                            if (firebaseService.isStoreNameTaken(regStoreName.trim())) {
+                                                regResult = "Error: Store name '$regStoreName' is already taken"
+                                                isRegistering = false
+                                                return@launch
+                                            }
+                                            
+                                            val newStore = com.village.generalstore.domain.model.Store(
+                                                name = regStoreName.trim(),
+                                                ownerName = regOwnerName.trim(),
+                                                address = regAddress.trim(),
+                                                phone = regPhone.trim(),
+                                                imageUrl = regImageUrl.trim(),
+                                                passcode = regPasscode.trim()
+                                            )
+                                            val id = firebaseService.registerStore(newStore)
+                                            regResult = "Registered! Your Store ID is: $id"
+                                            isRegistering = false
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = !isRegistering
+                                ) {
+                                    if (isRegistering) {
+                                        androidx.compose.material3.CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
+                                    } else {
+                                        Text("Register Store")
+                                    }
+                                }
+                            }
+                            item {
+                                TextButton(onClick = { showRegistration = false; showSellerLogin = true }) {
+                                    Text("Back to Login")
+                                }
+                            }
+                        }
+                    }
                 } else {
                     // Seller Login Fields
                     Card(
@@ -185,13 +283,25 @@ fun WelcomeScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = "Seller Dashboard Access",
+                                text = "Store Owner Login",
                                 fontSize = 20.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             
                             Spacer(modifier = Modifier.height(16.dp))
+
+                            OutlinedTextField(
+                                value = phoneInput,
+                                onValueChange = { phoneInput = it; loginError = null },
+                                label = { Text("Registered Mobile Number") },
+                                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            Spacer(modifier = Modifier.height(12.dp))
 
                             OutlinedTextField(
                                 value = password,
@@ -209,27 +319,50 @@ fun WelcomeScreen(
                                     text = loginError!!,
                                     color = MaterialTheme.colorScheme.error,
                                     fontSize = 14.sp,
-                                    modifier = Modifier.padding(top = 8.dp)
+                                    modifier = Modifier.padding(top = 8.dp),
+                                    textAlign = TextAlign.Center
                                 )
                             }
 
                             Spacer(modifier = Modifier.height(24.dp))
 
+                            val scope = androidx.compose.runtime.rememberCoroutineScope()
+                            val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                            val firebaseService = com.village.generalstore.data.remote.FirebaseService(firestore)
+                            var isLoggingIn by remember { mutableStateOf(false) }
+
                             Button(
                                 onClick = {
-                                    // For testing, passcode is "admin123" or "1234"
-                                    if (password == "1234" || password == "admin123") {
-                                        onNavigateToSeller()
-                                    } else {
-                                        loginError = "Incorrect passcode. Try '1234'"
+                                    if (phoneInput.isBlank() || password.isBlank()) {
+                                        loginError = "Please enter phone and passcode"
+                                        return@Button
+                                    }
+                                    isLoggingIn = true
+                                    scope.launch {
+                                        val store = firebaseService.getStoreByPhone(phoneInput.trim())
+                                        if (store != null) {
+                                            if (store.passcode == password.trim()) {
+                                                onNavigateToSeller(store.id)
+                                            } else {
+                                                loginError = "Incorrect passcode"
+                                            }
+                                        } else {
+                                            loginError = "No store registered with this number"
+                                        }
+                                        isLoggingIn = false
                                     }
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(48.dp),
-                                shape = RoundedCornerShape(12.dp)
+                                shape = RoundedCornerShape(12.dp),
+                                enabled = !isLoggingIn
                             ) {
-                                Text("Login", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                if (isLoggingIn) {
+                                    androidx.compose.material3.CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
+                                } else {
+                                    Text("Login", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                }
                             }
 
                             Spacer(modifier = Modifier.height(8.dp))

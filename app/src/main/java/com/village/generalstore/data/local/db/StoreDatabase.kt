@@ -7,7 +7,7 @@ import com.village.generalstore.data.local.dao.ProductDao
 import com.village.generalstore.data.local.entity.CartItemEntity
 import com.village.generalstore.data.local.entity.ProductEntity
 
-@Database(entities = [ProductEntity::class, CartItemEntity::class], version = 1, exportSchema = false)
+@Database(entities = [ProductEntity::class, CartItemEntity::class], version = 3, exportSchema = false)
 abstract class StoreDatabase : RoomDatabase() {
     abstract fun productDao(): ProductDao
     abstract fun cartDao(): CartDao

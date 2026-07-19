@@ -10,6 +10,7 @@ import com.village.generalstore.domain.model.Order
 import com.village.generalstore.domain.model.OrderItem
 import com.village.generalstore.domain.model.OrderStatus
 import com.village.generalstore.domain.model.Product
+import com.village.generalstore.domain.model.Store
 import com.village.generalstore.domain.repository.StoreRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -46,15 +47,34 @@ class StoreRepositoryImpl @Inject constructor(
         }
     }
 
+    // Stores
+    override fun getStores(): Flow<List<Store>> {
+        return firebaseService.getStoresFlow().flowOn(Dispatchers.IO)
+    }
+
+    override suspend fun getStoreById(id: String): Store? {
+        return firebaseService.getStoresFlow().first().find { it.id == id }
+    }
+
     // Products
-    override fun getProducts(): Flow<List<Product>> {
-        return productDao.getProducts().map { entities ->
-            entities.map { it.toDomain() }
-        }.flowOn(Dispatchers.IO)
+    override fun getProducts(storeId: String?): Flow<List<Product>> {
+        return if (storeId == null) {
+            productDao.getProducts().map { entities ->
+                entities.map { it.toDomain() }
+            }.flowOn(Dispatchers.IO)
+        } else {
+            productDao.getProducts().map { entities ->
+                entities.map { it.toDomain() }.filter { it.storeId == storeId }
+            }.flowOn(Dispatchers.IO)
+        }
     }
 
     override fun getProductById(id: String): Flow<Product?> {
         return productDao.getProductById(id).map { it?.toDomain() }.flowOn(Dispatchers.IO)
+    }
+
+    override suspend fun getProductByBarcode(barcode: String): Product? {
+        return productDao.getProductByBarcodeOneShot(barcode)?.toDomain()
     }
 
     override suspend fun upsertProduct(product: Product) {
@@ -139,11 +159,11 @@ class StoreRepositoryImpl @Inject constructor(
     }
 
     // Orders
-    override fun getOrders(): Flow<List<Order>> {
-        return firebaseService.getOrdersFlow().flowOn(Dispatchers.IO)
+    override fun getOrders(storeId: String?): Flow<List<Order>> {
+        return firebaseService.getOrdersFlow(storeId).flowOn(Dispatchers.IO)
     }
 
-    override suspend fun placeOrder(customerName: String, customerPhone: String, isDelivery: Boolean): String {
+    override suspend fun placeOrder(storeId: String, customerName: String, customerPhone: String, isDelivery: Boolean): String {
         val cartItems = cartDao.getCartItemsOneShot()
         if (cartItems.isEmpty()) return ""
 
@@ -160,6 +180,7 @@ class StoreRepositoryImpl @Inject constructor(
 
         val order = Order(
             id = UUID.randomUUID().toString(),
+            storeId = storeId,
             customerName = customerName,
             customerPhone = customerPhone,
             items = orderItems,

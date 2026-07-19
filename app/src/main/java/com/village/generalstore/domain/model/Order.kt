@@ -2,6 +2,7 @@ package com.village.generalstore.domain.model
 
 data class Order(
     val id: String = "",
+    val storeId: String = "",
     val customerName: String = "",
     val customerPhone: String = "",
     val items: List<OrderItem> = emptyList(),

@@ -7,6 +7,7 @@ import com.village.generalstore.domain.model.Order
 import com.village.generalstore.domain.model.OrderItem
 import com.village.generalstore.domain.model.OrderStatus
 import com.village.generalstore.domain.model.Product
+import com.village.generalstore.domain.model.Store
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -18,11 +19,79 @@ import javax.inject.Singleton
 class FirebaseService @Inject constructor(
     private val firestore: FirebaseFirestore
 ) {
+    private val storesCollection = firestore.collection("stores")
     private val productsCollection = firestore.collection("products")
     private val ordersCollection = firestore.collection("orders")
 
-    fun getProductsFlow(): Flow<List<Product>> = callbackFlow {
-        val listener: ListenerRegistration = productsCollection.addSnapshotListener { snapshot, error ->
+    fun getStoresFlow(): Flow<List<Store>> = callbackFlow {
+        val listener = storesCollection.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                close(error)
+                return@addSnapshotListener
+            }
+            if (snapshot != null) {
+                val stores = snapshot.documents.mapNotNull { doc ->
+                    Store(
+                        id = doc.id,
+                        name = doc.getString("name") ?: "",
+                        ownerName = doc.getString("ownerName") ?: "",
+                        address = doc.getString("address") ?: "",
+                        phone = doc.getString("phone") ?: "",
+                        imageUrl = doc.getString("imageUrl") ?: "",
+                        passcode = doc.getString("passcode") ?: ""
+                    )
+                }
+                trySend(stores)
+            }
+        }
+        awaitClose { listener.remove() }
+    }
+
+    suspend fun registerStore(store: Store): String {
+        val docRef = if (store.id.isEmpty()) storesCollection.document() else storesCollection.document(store.id)
+        val data = hashMapOf(
+            "name" to store.name,
+            "ownerName" to store.ownerName,
+            "address" to store.address,
+            "phone" to store.phone,
+            "imageUrl" to store.imageUrl,
+            "passcode" to store.passcode.ifEmpty { (1000..9999).random().toString() },
+            "latitude" to store.latitude,
+            "longitude" to store.longitude
+        )
+        docRef.set(data).await()
+        return docRef.id
+    }
+
+    suspend fun isStoreNameTaken(name: String): Boolean {
+        val snapshot = storesCollection.whereEqualTo("name", name).get().await()
+        return !snapshot.isEmpty
+    }
+
+    suspend fun getStoreByPhone(phone: String): Store? {
+        val snapshot = storesCollection.whereEqualTo("phone", phone).limit(1).get().await()
+        val doc = snapshot.documents.firstOrNull() ?: return null
+        return Store(
+            id = doc.id,
+            name = doc.getString("name") ?: "",
+            ownerName = doc.getString("ownerName") ?: "",
+            address = doc.getString("address") ?: "",
+            phone = doc.getString("phone") ?: "",
+            imageUrl = doc.getString("imageUrl") ?: "",
+            passcode = doc.getString("passcode") ?: "",
+            latitude = doc.getDouble("latitude"),
+            longitude = doc.getDouble("longitude")
+        )
+    }
+
+    fun getProductsFlow(storeId: String? = null): Flow<List<Product>> = callbackFlow {
+        val query = if (storeId != null) {
+            productsCollection.whereEqualTo("storeId", storeId)
+        } else {
+            productsCollection
+        }
+        
+        val listener: ListenerRegistration = query.addSnapshotListener { snapshot, error ->
             if (error != null) {
                 close(error)
                 return@addSnapshotListener
@@ -30,6 +99,7 @@ class FirebaseService @Inject constructor(
             if (snapshot != null) {
                 val products = snapshot.documents.mapNotNull { doc ->
                     val id = doc.id
+                    val sId = doc.getString("storeId") ?: ""
                     val name = doc.getString("name") ?: ""
                     val category = doc.getString("category") ?: ""
                     val mrp = doc.getDouble("mrp") ?: 0.0
@@ -38,7 +108,8 @@ class FirebaseService @Inject constructor(
                     val unit = doc.getString("unit") ?: "pcs"
                     val lowStockLimit = doc.getDouble("lowStockLimit") ?: 5.0
                     val imageUrl = doc.getString("imageUrl") ?: ""
-                    Product(id, name, category, mrp, discountPrice, stock, unit, lowStockLimit, imageUrl)
+                    val barcode = doc.getString("barcode")
+                    Product(id, sId, name, category, mrp, discountPrice, stock, unit, lowStockLimit, imageUrl, barcode)
                 }
                 trySend(products)
             }
@@ -48,6 +119,7 @@ class FirebaseService @Inject constructor(
 
     suspend fun upsertProduct(product: Product) {
         val data = hashMapOf(
+            "storeId" to product.storeId,
             "name" to product.name,
             "category" to product.category,
             "mrp" to product.mrp,
@@ -55,7 +127,8 @@ class FirebaseService @Inject constructor(
             "stock" to product.stock,
             "unit" to product.unit,
             "lowStockLimit" to product.lowStockLimit,
-            "imageUrl" to product.imageUrl
+            "imageUrl" to product.imageUrl,
+            "barcode" to product.barcode
         )
         productsCollection.document(product.id).set(data).await()
     }
@@ -68,8 +141,14 @@ class FirebaseService @Inject constructor(
         productsCollection.document(productId).update("stock", newStock).await()
     }
 
-    fun getOrdersFlow(): Flow<List<Order>> = callbackFlow {
-        val listener = ordersCollection.addSnapshotListener { snapshot, error ->
+    fun getOrdersFlow(storeId: String? = null): Flow<List<Order>> = callbackFlow {
+        val query = if (storeId != null) {
+            ordersCollection.whereEqualTo("storeId", storeId)
+        } else {
+            ordersCollection
+        }
+
+        val listener = query.addSnapshotListener { snapshot, error ->
             if (error != null) {
                 close(error)
                 return@addSnapshotListener
@@ -77,6 +156,7 @@ class FirebaseService @Inject constructor(
             if (snapshot != null) {
                 val orders = snapshot.documents.mapNotNull { doc ->
                     val id = doc.id
+                    val sId = doc.getString("storeId") ?: ""
                     val customerName = doc.getString("customerName") ?: ""
                     val customerPhone = doc.getString("customerPhone") ?: ""
                     val totalAmount = doc.getDouble("totalAmount") ?: 0.0
@@ -95,7 +175,7 @@ class FirebaseService @Inject constructor(
                             unit = map["unit"] as? String ?: ""
                         )
                     }
-                    Order(id, customerName, customerPhone, items, totalAmount, status, isDelivery, createdAt)
+                    Order(id, sId, customerName, customerPhone, items, totalAmount, status, isDelivery, createdAt)
                 }
                 trySend(orders.sortedByDescending { it.createdAt })
             }
@@ -115,6 +195,7 @@ class FirebaseService @Inject constructor(
             )
         }
         val data = hashMapOf(
+            "storeId" to order.storeId,
             "customerName" to order.customerName,
             "customerPhone" to order.customerPhone,
             "totalAmount" to order.totalAmount,

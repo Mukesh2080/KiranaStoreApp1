@@ -87,6 +87,9 @@ dependencies {
     // Coil (Image Loading)
     implementation("io.coil-kt:coil-compose:2.5.0")
 
+    // Barcode Scanning
+    implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
+
     // Testing
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
