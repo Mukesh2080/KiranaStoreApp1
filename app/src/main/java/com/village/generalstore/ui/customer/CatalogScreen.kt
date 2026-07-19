@@ -28,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Badge
@@ -71,6 +72,7 @@ import com.village.generalstore.domain.model.Product
 fun CatalogScreen(
     viewModel: CustomerViewModel,
     onNavigateToCart: () -> Unit,
+    onNavigateToTracking: () -> Unit,
     onBack: () -> Unit
 ) {
     val products by viewModel.products.collectAsState()
@@ -102,6 +104,11 @@ fun CatalogScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onNavigateToTracking) {
+                        Icon(Icons.Default.List, contentDescription = "My Orders")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

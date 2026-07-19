@@ -3,6 +3,7 @@ package com.village.generalstore.ui.main
 sealed class Screen(val route: String) {
     object Welcome : Screen("welcome")
     object StoreList : Screen("store_list")
+    object OrderTracking : Screen("order_tracking")
     object Catalog : Screen("catalog/{storeId}") {
         fun createRoute(storeId: String) = "catalog/$storeId"
     }

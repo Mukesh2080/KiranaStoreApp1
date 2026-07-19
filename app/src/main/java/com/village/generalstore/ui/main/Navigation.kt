@@ -10,6 +10,7 @@ import androidx.navigation.navArgument
 import com.village.generalstore.ui.customer.CartScreen
 import com.village.generalstore.ui.customer.CatalogScreen
 import com.village.generalstore.ui.customer.CustomerViewModel
+import com.village.generalstore.ui.customer.OrderTrackingScreen
 import com.village.generalstore.ui.customer.StoreListScreen
 import com.village.generalstore.ui.seller.DashboardScreen
 import com.village.generalstore.ui.seller.InventoryScreen
@@ -18,6 +19,8 @@ import com.village.generalstore.ui.seller.SellerViewModel
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
+    // Define a single CustomerViewModel to be shared across all customer screens
+    val customerViewModel: CustomerViewModel = hiltViewModel()
 
     NavHost(
         navController = navController,
@@ -33,7 +36,6 @@ fun AppNavigation() {
         }
 
         composable(Screen.StoreList.route) {
-            val customerViewModel: CustomerViewModel = hiltViewModel()
             StoreListScreen(
                 viewModel = customerViewModel,
                 onStoreSelected = { storeId ->
@@ -44,17 +46,24 @@ fun AppNavigation() {
             )
         }
 
+        composable(Screen.OrderTracking.route) {
+            OrderTrackingScreen(
+                viewModel = customerViewModel,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
         composable(
             route = Screen.Catalog.route,
             arguments = listOf(navArgument("storeId") { type = NavType.StringType })
         ) { backStackEntry ->
             val storeId = backStackEntry.arguments?.getString("storeId") ?: ""
-            val customerViewModel: CustomerViewModel = hiltViewModel()
             customerViewModel.selectStore(storeId)
             
             CatalogScreen(
                 viewModel = customerViewModel,
                 onNavigateToCart = { navController.navigate(Screen.Cart.createRoute(storeId)) },
+                onNavigateToTracking = { navController.navigate(Screen.OrderTracking.route) },
                 onBack = { navController.popBackStack() }
             )
         }
@@ -64,7 +73,6 @@ fun AppNavigation() {
             arguments = listOf(navArgument("storeId") { type = NavType.StringType })
         ) { backStackEntry ->
             val storeId = backStackEntry.arguments?.getString("storeId") ?: ""
-            val customerViewModel: CustomerViewModel = hiltViewModel()
             customerViewModel.selectStore(storeId)
 
             CartScreen(

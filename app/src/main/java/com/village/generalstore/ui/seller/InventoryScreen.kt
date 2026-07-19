@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -80,10 +82,14 @@ fun InventoryScreen(
     var scannedBarcode by remember { mutableStateOf<String?>(null) }
 
     val context = LocalContext.current
-    val scannerOptions = GmsBarcodeScannerOptions.Builder()
-        .setBarcodeFormats(com.google.mlkit.vision.barcode.common.Barcode.FORMAT_ALL_FORMATS)
-        .build()
-    val scanner = GmsBarcodeScanning.getClient(context, scannerOptions)
+    val scannerOptions = remember {
+        GmsBarcodeScannerOptions.Builder()
+            .setBarcodeFormats(com.google.mlkit.vision.barcode.common.Barcode.FORMAT_ALL_FORMATS)
+            .build()
+    }
+    val scanner = remember(context, scannerOptions) {
+        GmsBarcodeScanning.getClient(context, scannerOptions)
+    }
 
     fun startScanning() {
         scanner.startScan()
@@ -371,190 +377,175 @@ fun ProductEditDialog(
 
     var errorText by remember { mutableStateOf<String?>(null) }
 
+    val context = LocalContext.current
+    val scannerOptions = remember {
+        GmsBarcodeScannerOptions.Builder()
+            .setBarcodeFormats(com.google.mlkit.vision.barcode.common.Barcode.FORMAT_ALL_FORMATS)
+            .build()
+    }
+    val scanner = remember(context, scannerOptions) {
+        GmsBarcodeScanning.getClient(context, scannerOptions)
+    }
+
     Dialog(onDismissRequest = onDismiss) {
         Card(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             shape = RoundedCornerShape(24.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            LazyColumn(
+            Column(
                 modifier = Modifier
                     .padding(24.dp)
-                    .fillMaxWidth(),
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                item {
-                    Text(
-                        text = if (product == null) "Add Product" else "Edit Product",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
+                Text(
+                    text = if (product == null) "Add Product" else "Edit Product",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
 
-                item {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Product Name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = category,
+                    onValueChange = { category = it },
+                    label = { Text("Category") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(
-                        value = name,
-                        onValueChange = { name = it },
-                        label = { Text("Product Name") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                item {
-                    OutlinedTextField(
-                        value = category,
-                        onValueChange = { category = it },
-                        label = { Text("Category") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                item {
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        OutlinedTextField(
-                            value = mrp,
-                            onValueChange = { mrp = it },
-                            label = { Text("MRP (₹)") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            singleLine = true,
-                            modifier = Modifier.weight(1f)
-                        )
-                        OutlinedTextField(
-                            value = discountPrice,
-                            onValueChange = { discountPrice = it },
-                            label = { Text("Offer Price (₹)") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            singleLine = true,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-
-                item {
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        OutlinedTextField(
-                            value = stock,
-                            onValueChange = { stock = it },
-                            label = { Text("Initial Stock") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            singleLine = true,
-                            modifier = Modifier.weight(1f)
-                        )
-                        OutlinedTextField(
-                            value = unit,
-                            onValueChange = { unit = it },
-                            label = { Text("Unit (e.g. kg, pcs)") },
-                            singleLine = true,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-
-                item {
-                    OutlinedTextField(
-                        value = lowStockLimit,
-                        onValueChange = { lowStockLimit = it },
-                        label = { Text("Low Stock Alert Limit") },
+                        value = mrp,
+                        onValueChange = { mrp = it },
+                        label = { Text("MRP (₹)") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = discountPrice,
+                        onValueChange = { discountPrice = it },
+                        label = { Text("Offer Price (₹)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
                     )
                 }
 
-                item {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(
-                        value = imageUrl,
-                        onValueChange = { imageUrl = it },
-                        label = { Text("Image URL (Optional)") },
+                        value = stock,
+                        onValueChange = { stock = it },
+                        label = { Text("Initial Stock") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = unit,
+                        onValueChange = { unit = it },
+                        label = { Text("Unit (e.g. kg, pcs)") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
                     )
                 }
 
-                item {
-                    val context = LocalContext.current
-                    val scannerOptions = GmsBarcodeScannerOptions.Builder()
-                        .setBarcodeFormats(com.google.mlkit.vision.barcode.common.Barcode.FORMAT_ALL_FORMATS)
-                        .build()
-                    val scanner = GmsBarcodeScanning.getClient(context, scannerOptions)
+                OutlinedTextField(
+                    value = lowStockLimit,
+                    onValueChange = { lowStockLimit = it },
+                    label = { Text("Low Stock Alert Limit") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
 
-                    OutlinedTextField(
-                        value = barcode,
-                        onValueChange = { barcode = it },
-                        label = { Text("Barcode") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        trailingIcon = {
-                            IconButton(onClick = {
-                                scanner.startScan()
-                                    .addOnSuccessListener { result ->
-                                        result.rawValue?.let { barcode = it }
-                                    }
-                            }) {
-                                Icon(Icons.Default.Search, contentDescription = "Scan")
-                            }
+                OutlinedTextField(
+                    value = imageUrl,
+                    onValueChange = { imageUrl = it },
+                    label = { Text("Image URL (Optional)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = barcode,
+                    onValueChange = { barcode = it },
+                    label = { Text("Barcode") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    trailingIcon = {
+                        IconButton(onClick = {
+                            scanner.startScan()
+                                .addOnSuccessListener { result ->
+                                    result.rawValue?.let { barcode = it }
+                                }
+                        }) {
+                            Icon(Icons.Default.Search, contentDescription = "Scan")
                         }
-                    )
-                }
+                    }
+                )
 
                 if (errorText != null) {
-                    item {
-                        Text(
-                            text = errorText!!,
-                            color = MaterialTheme.colorScheme.error,
-                            fontSize = 13.sp
-                        )
-                    }
+                    Text(
+                        text = errorText!!,
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 13.sp
+                    )
                 }
 
-                item {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        TextButton(onClick = onDismiss) {
-                            Text("Cancel")
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(
-                            onClick = {
-                                val parsedMrp = mrp.toDoubleOrNull()
-                                val parsedDiscount = discountPrice.toDoubleOrNull()
-                                val parsedStock = stock.toDoubleOrNull()
-                                val parsedLimit = lowStockLimit.toDoubleOrNull()
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancel")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            val parsedMrp = mrp.toDoubleOrNull()
+                            val parsedDiscount = discountPrice.toDoubleOrNull()
+                            val parsedStock = stock.toDoubleOrNull()
+                            val parsedLimit = lowStockLimit.toDoubleOrNull()
 
-                                when {
-                                    name.isBlank() -> errorText = "Product name cannot be empty"
-                                    parsedMrp == null || parsedMrp <= 0 -> errorText = "Enter a valid MRP"
-                                    parsedDiscount == null || parsedDiscount <= 0 -> errorText = "Enter a valid offer price"
-                                    parsedDiscount > parsedMrp -> errorText = "Offer price cannot be greater than MRP"
-                                    parsedStock == null || parsedStock < 0 -> errorText = "Enter valid stock level"
-                                    parsedLimit == null || parsedLimit < 0 -> errorText = "Enter a valid alert threshold"
-                                    else -> {
-                                        val newProduct = Product(
-                                            id = product?.id ?: "",
-                                            name = name.trim(),
-                                            category = category.trim(),
-                                            mrp = parsedMrp,
-                                            discountPrice = parsedDiscount,
-                                            stock = parsedStock,
-                                            unit = unit.trim().lowercase(),
-                                            lowStockLimit = parsedLimit,
-                                            imageUrl = imageUrl.trim(),
-                                            barcode = barcode.ifBlank { null }
-                                        )
-                                        onConfirm(newProduct)
-                                    }
+                            when {
+                                name.isBlank() -> errorText = "Product name cannot be empty"
+                                parsedMrp == null || parsedMrp <= 0 -> errorText = "Enter a valid MRP"
+                                parsedDiscount == null || parsedDiscount <= 0 -> errorText = "Enter a valid offer price"
+                                parsedDiscount > parsedMrp -> errorText = "Offer price cannot be greater than MRP"
+                                parsedStock == null || parsedStock < 0 -> errorText = "Enter valid stock level"
+                                parsedLimit == null || parsedLimit < 0 -> errorText = "Enter a valid alert threshold"
+                                else -> {
+                                    val newProduct = Product(
+                                        id = product?.id ?: "",
+                                        name = name.trim(),
+                                        category = category.trim(),
+                                        mrp = parsedMrp,
+                                        discountPrice = parsedDiscount,
+                                        stock = parsedStock,
+                                        unit = unit.trim().lowercase(),
+                                        lowStockLimit = parsedLimit,
+                                        imageUrl = imageUrl.trim(),
+                                        barcode = barcode.ifBlank { null }
+                                    )
+                                    onConfirm(newProduct)
                                 }
                             }
-                        ) {
-                            Text("Save")
                         }
+                    ) {
+                        Text("Save")
                     }
                 }
             }

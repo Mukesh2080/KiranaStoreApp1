@@ -29,6 +29,10 @@ interface StoreRepository {
 
     // Orders
     fun getOrders(storeId: String? = null): Flow<List<Order>>
-    suspend fun placeOrder(storeId: String, customerName: String, customerPhone: String, isDelivery: Boolean): String
+    fun getCustomerOrders(customerId: String): Flow<List<Order>>
+    suspend fun placeOrder(storeId: String, customerId: String, customerName: String, customerPhone: String, isDelivery: Boolean, deliveryAddress: String? = null): String
     suspend fun updateOrderStatus(orderId: String, status: OrderStatus)
+
+    // Customers
+    suspend fun getOrCreateCustomer(name: String, phone: String): String
 }

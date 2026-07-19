@@ -13,7 +13,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -101,9 +104,12 @@ fun WelcomeScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(24.dp),
+                    .verticalScroll(rememberScrollState())
+                    .padding(24.dp)
+                    .safeDrawingPadding()
+                    .imePadding(),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                verticalArrangement = Arrangement.Top
             ) {
                 // Store Icon / Mascot
                 Box(
@@ -203,68 +209,64 @@ fun WelcomeScreen(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                     ) {
-                        LazyColumn(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            item { Text("Register Your Store", fontSize = 20.sp, fontWeight = FontWeight.Bold) }
+                        Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text("Register Your Store", fontSize = 20.sp, fontWeight = FontWeight.Bold)
                             
-                            item { OutlinedTextField(value = regStoreName, onValueChange = { regStoreName = it }, label = { Text("Store Name (Mandatory)") }, modifier = Modifier.fillMaxWidth()) }
-                            item { OutlinedTextField(value = regOwnerName, onValueChange = { regOwnerName = it }, label = { Text("Owner Name") }, modifier = Modifier.fillMaxWidth()) }
-                            item { OutlinedTextField(value = regPhone, onValueChange = { regPhone = it }, label = { Text("Mobile Number (Mandatory)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), modifier = Modifier.fillMaxWidth()) }
-                            item { OutlinedTextField(value = regAddress, onValueChange = { regAddress = it }, label = { Text("Store Location / Address") }, modifier = Modifier.fillMaxWidth()) }
-                            item { OutlinedTextField(value = regImageUrl, onValueChange = { regImageUrl = it }, label = { Text("Store Image URL") }, modifier = Modifier.fillMaxWidth()) }
-                            item { OutlinedTextField(value = regPasscode, onValueChange = { regPasscode = it }, label = { Text("Set 4-Digit Passcode") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword), modifier = Modifier.fillMaxWidth()) }
+                            OutlinedTextField(value = regStoreName, onValueChange = { regStoreName = it }, label = { Text("Store Name (Mandatory)") }, modifier = Modifier.fillMaxWidth())
+                            OutlinedTextField(value = regOwnerName, onValueChange = { regOwnerName = it }, label = { Text("Owner Name") }, modifier = Modifier.fillMaxWidth())
+                            OutlinedTextField(value = regPhone, onValueChange = { regPhone = it }, label = { Text("Mobile Number (Mandatory)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), modifier = Modifier.fillMaxWidth())
+                            OutlinedTextField(value = regAddress, onValueChange = { regAddress = it }, label = { Text("Store Location / Address") }, modifier = Modifier.fillMaxWidth())
+                            OutlinedTextField(value = regImageUrl, onValueChange = { regImageUrl = it }, label = { Text("Store Image URL") }, modifier = Modifier.fillMaxWidth())
+                            OutlinedTextField(value = regPasscode, onValueChange = { regPasscode = it }, label = { Text("Set 4-Digit Passcode") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword), modifier = Modifier.fillMaxWidth())
                             
                             if (regResult != null) {
-                                item { Text(regResult!!, color = if (regResult!!.startsWith("Registered")) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp), textAlign = TextAlign.Center) }
+                                Text(regResult!!, color = if (regResult!!.startsWith("Registered")) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp), textAlign = TextAlign.Center)
                             }
                             
-                            item {
-                                val scope = androidx.compose.runtime.rememberCoroutineScope()
-                                val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-                                val firebaseService = com.village.generalstore.data.remote.FirebaseService(firestore)
-                                
-                                Button(
-                                    onClick = {
-                                        if (regStoreName.isBlank() || regPhone.isBlank() || regPasscode.isBlank()) {
-                                            regResult = "Store Name, Phone, and Passcode are required"
-                                            return@Button
-                                        }
-                                        if (isRegistering) return@Button
-                                        isRegistering = true
-                                        
-                                        scope.launch {
-                                            if (firebaseService.isStoreNameTaken(regStoreName.trim())) {
-                                                regResult = "Error: Store name '$regStoreName' is already taken"
-                                                isRegistering = false
-                                                return@launch
-                                            }
-                                            
-                                            val newStore = com.village.generalstore.domain.model.Store(
-                                                name = regStoreName.trim(),
-                                                ownerName = regOwnerName.trim(),
-                                                address = regAddress.trim(),
-                                                phone = regPhone.trim(),
-                                                imageUrl = regImageUrl.trim(),
-                                                passcode = regPasscode.trim()
-                                            )
-                                            val id = firebaseService.registerStore(newStore)
-                                            regResult = "Registered! Your Store ID is: $id"
-                                            isRegistering = false
-                                        }
-                                    },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    enabled = !isRegistering
-                                ) {
-                                    if (isRegistering) {
-                                        androidx.compose.material3.CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
-                                    } else {
-                                        Text("Register Store")
+                            val scope = androidx.compose.runtime.rememberCoroutineScope()
+                            val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                            val firebaseService = com.village.generalstore.data.remote.FirebaseService(firestore)
+                            
+                            Button(
+                                onClick = {
+                                    if (regStoreName.isBlank() || regPhone.isBlank() || regPasscode.isBlank()) {
+                                        regResult = "Store Name, Phone, and Passcode are required"
+                                        return@Button
                                     }
+                                    if (isRegistering) return@Button
+                                    isRegistering = true
+                                    
+                                    scope.launch {
+                                        if (firebaseService.isStoreNameTaken(regStoreName.trim())) {
+                                            regResult = "Error: Store name '$regStoreName' is already taken"
+                                            isRegistering = false
+                                            return@launch
+                                        }
+                                        
+                                        val newStore = com.village.generalstore.domain.model.Store(
+                                            name = regStoreName.trim(),
+                                            ownerName = regOwnerName.trim(),
+                                            address = regAddress.trim(),
+                                            phone = regPhone.trim(),
+                                            imageUrl = regImageUrl.trim(),
+                                            passcode = regPasscode.trim()
+                                        )
+                                        val id = firebaseService.registerStore(newStore)
+                                        regResult = "Registered! Your Store ID is: $id"
+                                        isRegistering = false
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = !isRegistering
+                            ) {
+                                if (isRegistering) {
+                                    androidx.compose.material3.CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
+                                } else {
+                                    Text("Register Store")
                                 }
                             }
-                            item {
-                                TextButton(onClick = { showRegistration = false; showSellerLogin = true }) {
-                                    Text("Back to Login")
-                                }
+                            TextButton(onClick = { showRegistration = false; showSellerLogin = true }) {
+                                Text("Back to Login")
                             }
                         }
                     }

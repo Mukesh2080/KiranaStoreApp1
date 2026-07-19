@@ -3,12 +3,15 @@ package com.village.generalstore.domain.model
 data class Order(
     val id: String = "",
     val storeId: String = "",
+    val customerId: String = "",
     val customerName: String = "",
     val customerPhone: String = "",
     val items: List<OrderItem> = emptyList(),
     val totalAmount: Double = 0.0,
     val status: OrderStatus = OrderStatus.PENDING,
     val isDelivery: Boolean = false,
+    val deliveryAddress: String? = null,
+    val deliveryCharge: Double = 0.0,
     val createdAt: Long = System.currentTimeMillis()
 )
 

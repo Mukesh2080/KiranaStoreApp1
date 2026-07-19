@@ -163,11 +163,18 @@ class StoreRepositoryImpl @Inject constructor(
         return firebaseService.getOrdersFlow(storeId).flowOn(Dispatchers.IO)
     }
 
-    override suspend fun placeOrder(storeId: String, customerName: String, customerPhone: String, isDelivery: Boolean): String {
+    override fun getCustomerOrders(customerId: String): Flow<List<Order>> {
+        return firebaseService.getCustomerOrdersFlow(customerId).flowOn(Dispatchers.IO)
+    }
+
+    override suspend fun placeOrder(storeId: String, customerId: String, customerName: String, customerPhone: String, isDelivery: Boolean, deliveryAddress: String?): String {
         val cartItems = cartDao.getCartItemsOneShot()
         if (cartItems.isEmpty()) return ""
 
-        val totalAmount = cartItems.sumOf { it.price * it.quantity }
+        val itemsAmount = cartItems.sumOf { it.price * it.quantity }
+        val deliveryCharge = if (isDelivery && itemsAmount < 500.0) 40.0 else 0.0
+        val totalAmount = itemsAmount + deliveryCharge
+
         val orderItems = cartItems.map {
             OrderItem(
                 productId = it.productId,
@@ -181,12 +188,15 @@ class StoreRepositoryImpl @Inject constructor(
         val order = Order(
             id = UUID.randomUUID().toString(),
             storeId = storeId,
+            customerId = customerId,
             customerName = customerName,
             customerPhone = customerPhone,
             items = orderItems,
             totalAmount = totalAmount,
             status = OrderStatus.PENDING,
             isDelivery = isDelivery,
+            deliveryAddress = deliveryAddress,
+            deliveryCharge = deliveryCharge,
             createdAt = System.currentTimeMillis()
         )
 
@@ -210,5 +220,9 @@ class StoreRepositoryImpl @Inject constructor(
 
     override suspend fun updateOrderStatus(orderId: String, status: OrderStatus) {
         firebaseService.updateOrderStatus(orderId, status)
+    }
+
+    override suspend fun getOrCreateCustomer(name: String, phone: String): String {
+        return firebaseService.getOrCreateCustomer(name, phone)
     }
 }

@@ -353,7 +353,7 @@ fun OrderCard(
                 // Quick Status Updates button dropdown
                 var showDropdown by remember { mutableStateOf(false) }
                 
-                Box {
+                Box(contentAlignment = Alignment.TopEnd) {
                     Button(
                         onClick = { showDropdown = true },
                         colors = ButtonDefaults.buttonColors(
@@ -386,14 +386,31 @@ fun OrderCard(
 
                     DropdownMenu(
                         expanded = showDropdown,
-                        onDismissRequest = { showDropdown = false }
+                        onDismissRequest = { showDropdown = false },
+                        modifier = Modifier.background(MaterialTheme.colorScheme.surface)
                     ) {
                         OrderStatus.values().forEach { status ->
                             DropdownMenuItem(
-                                text = { Text(status.name) },
+                                text = { 
+                                    Text(
+                                        text = status.name,
+                                        color = if (order.status == status) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                        fontWeight = if (order.status == status) FontWeight.Bold else FontWeight.Normal
+                                    ) 
+                                },
                                 onClick = {
                                     showDropdown = false
                                     onUpdateStatus(status)
+                                },
+                                leadingIcon = {
+                                    if (order.status == status) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
                                 }
                             )
                         }
@@ -453,6 +470,48 @@ fun OrderCard(
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
+                        }
+                    }
+
+                    if (order.isDelivery) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Divider()
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .padding(12.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Home, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Delivery Address", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = order.deliveryAddress ?: "No address provided",
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            if (order.deliveryCharge > 0) {
+                                Text(
+                                    text = "Delivery Fee Collected: ₹${order.deliveryCharge}",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.secondary,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+                            } else {
+                                Text(
+                                    text = "Free Delivery applied",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF10B981),
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+                            }
                         }
                     }
                 }

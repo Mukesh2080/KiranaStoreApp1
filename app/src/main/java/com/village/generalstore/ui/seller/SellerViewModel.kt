@@ -135,13 +135,3 @@ data class DashboardMetrics(
     val pendingOrdersCount: Int = 0
 )
 
-// Helper extension function to map StateFlow mapping logic
-private fun <T, R> StateFlow<T>.map(transform: (T) -> R): StateFlow<R> {
-    val mutableState = MutableStateFlow(transform(this.value))
-    CoroutineScope(Dispatchers.Default).launch {
-        this@map.collect {
-            mutableState.value = transform(it)
-        }
-    }
-    return mutableState.asStateFlow()
-}

@@ -22,6 +22,7 @@ class FirebaseService @Inject constructor(
     private val storesCollection = firestore.collection("stores")
     private val productsCollection = firestore.collection("products")
     private val ordersCollection = firestore.collection("orders")
+    private val customersCollection = firestore.collection("customers")
 
     fun getStoresFlow(): Flow<List<Store>> = callbackFlow {
         val listener = storesCollection.addSnapshotListener { snapshot, error ->
@@ -157,12 +158,15 @@ class FirebaseService @Inject constructor(
                 val orders = snapshot.documents.mapNotNull { doc ->
                     val id = doc.id
                     val sId = doc.getString("storeId") ?: ""
+                    val cId = doc.getString("customerId") ?: ""
                     val customerName = doc.getString("customerName") ?: ""
                     val customerPhone = doc.getString("customerPhone") ?: ""
                     val totalAmount = doc.getDouble("totalAmount") ?: 0.0
                     val statusStr = doc.getString("status") ?: "PENDING"
                     val status = try { OrderStatus.valueOf(statusStr) } catch (e: Exception) { OrderStatus.PENDING }
                     val isDelivery = doc.getBoolean("isDelivery") ?: false
+                    val deliveryAddress = doc.getString("deliveryAddress")
+                    val deliveryCharge = doc.getDouble("deliveryCharge") ?: 0.0
                     val createdAt = doc.getLong("createdAt") ?: System.currentTimeMillis()
 
                     val itemsRaw = doc.get("items") as? List<Map<String, Any>> ?: emptyList()
@@ -175,7 +179,7 @@ class FirebaseService @Inject constructor(
                             unit = map["unit"] as? String ?: ""
                         )
                     }
-                    Order(id, sId, customerName, customerPhone, items, totalAmount, status, isDelivery, createdAt)
+                    Order(id, sId, cId, customerName, customerPhone, items, totalAmount, status, isDelivery, deliveryAddress, deliveryCharge, createdAt)
                 }
                 trySend(orders.sortedByDescending { it.createdAt })
             }
@@ -196,11 +200,14 @@ class FirebaseService @Inject constructor(
         }
         val data = hashMapOf(
             "storeId" to order.storeId,
+            "customerId" to order.customerId,
             "customerName" to order.customerName,
             "customerPhone" to order.customerPhone,
             "totalAmount" to order.totalAmount,
             "status" to order.status.name,
             "isDelivery" to order.isDelivery,
+            "deliveryAddress" to order.deliveryAddress,
+            "deliveryCharge" to order.deliveryCharge,
             "createdAt" to order.createdAt,
             "items" to itemsList
         )
@@ -210,5 +217,56 @@ class FirebaseService @Inject constructor(
 
     suspend fun updateOrderStatus(orderId: String, status: OrderStatus) {
         ordersCollection.document(orderId).update("status", status.name).await()
+    }
+
+    suspend fun getOrCreateCustomer(name: String, phone: String): String {
+        val snapshot = customersCollection.whereEqualTo("phone", phone).get().await()
+        return if (snapshot.isEmpty) {
+            val doc = customersCollection.document()
+            doc.set(hashMapOf("name" to name, "phone" to phone)).await()
+            doc.id
+        } else {
+            snapshot.documents.first().id
+        }
+    }
+
+    fun getCustomerOrdersFlow(customerId: String): Flow<List<Order>> = callbackFlow {
+        val listener = ordersCollection.whereEqualTo("customerId", customerId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    val orders = snapshot.documents.mapNotNull { doc ->
+                        val id = doc.id
+                        val sId = doc.getString("storeId") ?: ""
+                        val cId = doc.getString("customerId") ?: ""
+                        val customerName = doc.getString("customerName") ?: ""
+                        val customerPhone = doc.getString("customerPhone") ?: ""
+                        val totalAmount = doc.getDouble("totalAmount") ?: 0.0
+                        val statusStr = doc.getString("status") ?: "PENDING"
+                        val status = try { OrderStatus.valueOf(statusStr) } catch (e: Exception) { OrderStatus.PENDING }
+                        val isDelivery = doc.getBoolean("isDelivery") ?: false
+                        val deliveryAddress = doc.getString("deliveryAddress")
+                        val deliveryCharge = doc.getDouble("deliveryCharge") ?: 0.0
+                        val createdAt = doc.getLong("createdAt") ?: System.currentTimeMillis()
+
+                        val itemsRaw = doc.get("items") as? List<Map<String, Any>> ?: emptyList()
+                        val items = itemsRaw.map { map ->
+                            OrderItem(
+                                productId = map["productId"] as? String ?: "",
+                                name = map["name"] as? String ?: "",
+                                price = (map["price"] as? Number)?.toDouble() ?: 0.0,
+                                quantity = (map["quantity"] as? Number)?.toDouble() ?: 0.0,
+                                unit = map["unit"] as? String ?: ""
+                            )
+                        }
+                        Order(id, sId, cId, customerName, customerPhone, items, totalAmount, status, isDelivery, deliveryAddress, deliveryCharge, createdAt)
+                    }
+                    trySend(orders.sortedByDescending { it.createdAt })
+                }
+            }
+        awaitClose { listener.remove() }
     }
 }

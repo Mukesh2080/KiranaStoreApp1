@@ -43,4 +43,12 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideFirebaseAuth(): FirebaseAuth = FirebaseAuth.getInstance()
+
+    @Provides
+    @Singleton
+    fun provideSharedPreferences(
+        @ApplicationContext context: Context
+    ): android.content.SharedPreferences {
+        return context.getSharedPreferences("kirana_store_prefs", Context.MODE_PRIVATE)
+    }
 }

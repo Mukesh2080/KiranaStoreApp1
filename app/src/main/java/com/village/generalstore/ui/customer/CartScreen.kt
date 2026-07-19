@@ -72,10 +72,11 @@ fun CartScreen(
     val cartItems by viewModel.cartItems.collectAsState()
     val cartSummary by viewModel.cartSummary.collectAsState()
     val orderState by viewModel.orderState.collectAsState()
+    val isDelivery by viewModel.isDelivery.collectAsState()
+    val deliveryAddress by viewModel.deliveryAddress.collectAsState()
 
     var customerName by remember { mutableStateOf("") }
     var customerPhone by remember { mutableStateOf("") }
-    var isDelivery by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -162,7 +163,9 @@ fun CartScreen(
                                 phone = customerPhone,
                                 onPhoneChange = { customerPhone = it },
                                 isDelivery = isDelivery,
-                                onDeliveryChange = { isDelivery = it }
+                                onDeliveryChange = { viewModel.setDelivery(it) },
+                                address = deliveryAddress,
+                                onAddressChange = { viewModel.setAddress(it) }
                             )
                         }
 
@@ -172,7 +175,8 @@ fun CartScreen(
                             BillSummaryCard(
                                 subtotal = cartSummary.totalAmount + cartSummary.totalSavings,
                                 savings = cartSummary.totalSavings,
-                                finalAmount = cartSummary.totalAmount
+                                deliveryCharge = cartSummary.deliveryCharge,
+                                finalAmount = cartSummary.totalAmount + cartSummary.deliveryCharge
                             )
                             Spacer(modifier = Modifier.height(24.dp))
                         }
@@ -197,7 +201,7 @@ fun CartScreen(
                             Column {
                                 Text(text = "Total Payable", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Text(
-                                    text = "₹${cartSummary.totalAmount}",
+                                    text = "₹${cartSummary.totalAmount + cartSummary.deliveryCharge}",
                                     fontSize = 22.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary
@@ -206,7 +210,7 @@ fun CartScreen(
 
                             Button(
                                 onClick = {
-                                    viewModel.placeOrder(customerName, customerPhone, isDelivery)
+                                    viewModel.placeOrder(customerName, customerPhone)
                                 },
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.primary
@@ -398,7 +402,9 @@ fun CustomerDetailsSection(
     phone: String,
     onPhoneChange: (String) -> Unit,
     isDelivery: Boolean,
-    onDeliveryChange: (Boolean) -> Unit
+    onDeliveryChange: (Boolean) -> Unit,
+    address: String,
+    onAddressChange: (String) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -455,6 +461,26 @@ fun CustomerDetailsSection(
                 }
                 Switch(checked = isDelivery, onCheckedChange = onDeliveryChange)
             }
+
+            AnimatedVisibility(visible = isDelivery) {
+                Column {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = address,
+                        onValueChange = onAddressChange,
+                        label = { Text("Delivery Address") },
+                        placeholder = { Text("Street name, Landmark, City...") },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 2
+                    )
+                    Text(
+                        text = "Orders above ₹500 get FREE delivery!",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(top = 4.dp, start = 4.dp)
+                    )
+                }
+            }
         }
     }
 }
@@ -463,6 +489,7 @@ fun CustomerDetailsSection(
 fun BillSummaryCard(
     subtotal: Double,
     savings: Double,
+    deliveryCharge: Double,
     finalAmount: Double
 ) {
     Card(
@@ -492,6 +519,18 @@ fun BillSummaryCard(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(text = "Store Discount", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(text = "-₹$savings", color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Medium)
+            }
+
+            if (deliveryCharge > 0 || subtotal - savings >= 500) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(text = "Delivery Charge", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (deliveryCharge > 0) {
+                        Text(text = "₹$deliveryCharge", color = MaterialTheme.colorScheme.onSurface)
+                    } else {
+                        Text(text = "FREE", color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
