@@ -95,6 +95,11 @@ fun AppNavigation() {
             DashboardScreen(
                 viewModel = sellerViewModel,
                 onNavigateToInventory = { navController.navigate(Screen.SellerInventory.createRoute(storeId)) },
+                onLogout = {
+                    navController.navigate(Screen.Welcome.route) {
+                        popUpTo(Screen.Welcome.route) { inclusive = true }
+                    }
+                },
                 onBack = { navController.popBackStack() }
             )
         }

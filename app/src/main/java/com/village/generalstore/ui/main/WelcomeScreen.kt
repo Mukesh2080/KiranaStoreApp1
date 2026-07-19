@@ -63,6 +63,7 @@ fun WelcomeScreen(
     val customerViewModel: CustomerViewModel = hiltViewModel()
     val stores by customerViewModel.stores.collectAsState()
 
+    var isVisible by remember { mutableStateOf(false) }
     var showSellerLogin by remember { mutableStateOf(false) }
     var showRegistration by remember { mutableStateOf(false) }
     var phoneInput by remember { mutableStateOf("") }
@@ -78,10 +79,15 @@ fun WelcomeScreen(
     var regPasscode by remember { mutableStateOf("") }
     var regResult by remember { mutableStateOf<String?>(null) }
     var isRegistering by remember { mutableStateOf(false) }
-    
-    var isVisible by remember { mutableStateOf(false) }
+
+    val sharedPreferences = androidx.compose.ui.platform.LocalContext.current.getSharedPreferences("kirana_store_prefs", android.content.Context.MODE_PRIVATE)
+
     LaunchedEffect(Unit) {
         isVisible = true
+        val savedStoreId = sharedPreferences.getString("seller_store_id", null)
+        if (savedStoreId != null) {
+            onNavigateToSeller(savedStoreId)
+        }
     }
 
     Box(
@@ -252,6 +258,7 @@ fun WelcomeScreen(
                                             passcode = regPasscode.trim()
                                         )
                                         val id = firebaseService.registerStore(newStore)
+                                        sharedPreferences.edit().putString("seller_store_id", id).apply()
                                         regResult = "Registered! Your Store ID is: $id"
                                         isRegistering = false
                                     }
@@ -344,6 +351,7 @@ fun WelcomeScreen(
                                         val store = firebaseService.getStoreByPhone(phoneInput.trim())
                                         if (store != null) {
                                             if (store.passcode == password.trim()) {
+                                                sharedPreferences.edit().putString("seller_store_id", store.id).apply()
                                                 onNavigateToSeller(store.id)
                                             } else {
                                                 loginError = "Incorrect passcode"

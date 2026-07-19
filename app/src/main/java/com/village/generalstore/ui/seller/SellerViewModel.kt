@@ -23,10 +23,11 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SellerViewModel @Inject constructor(
-    private val repository: StoreRepository
+    private val repository: StoreRepository,
+    private val sharedPreferences: android.content.SharedPreferences
 ) : ViewModel() {
 
-    private val _currentStoreId = MutableStateFlow<String?>(null)
+    private val _currentStoreId = MutableStateFlow<String?>(sharedPreferences.getString("seller_store_id", null))
     val currentStoreId = _currentStoreId.asStateFlow()
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -47,6 +48,16 @@ class SellerViewModel @Inject constructor(
 
     fun setStoreId(storeId: String) {
         _currentStoreId.value = storeId
+    }
+
+    fun saveStoreSession(storeId: String) {
+        sharedPreferences.edit().putString("seller_store_id", storeId).apply()
+        _currentStoreId.value = storeId
+    }
+
+    fun logout() {
+        sharedPreferences.edit().remove("seller_store_id").apply()
+        _currentStoreId.value = null
     }
 
     private val _uiState = MutableStateFlow(SellerUiState())
