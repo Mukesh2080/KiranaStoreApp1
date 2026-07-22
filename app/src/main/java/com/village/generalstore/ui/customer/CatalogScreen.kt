@@ -28,7 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Badge
@@ -108,7 +108,7 @@ fun CatalogScreen(
                 },
                 actions = {
                     IconButton(onClick = onNavigateToTracking) {
-                        Icon(Icons.Default.List, contentDescription = "My Orders")
+                        Icon(Icons.Default.Person, contentDescription = "My Orders")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

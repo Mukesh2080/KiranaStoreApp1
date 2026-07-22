@@ -35,4 +35,8 @@ interface StoreRepository {
 
     // Customers
     suspend fun getOrCreateCustomer(name: String, phone: String): String
+    suspend fun deleteCustomerData(customerId: String)
+
+    // Store Data deletion
+    suspend fun deleteStoreData(storeId: String)
 }

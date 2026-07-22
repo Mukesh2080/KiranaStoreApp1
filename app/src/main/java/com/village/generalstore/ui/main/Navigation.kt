@@ -42,6 +42,7 @@ fun AppNavigation() {
                     customerViewModel.selectStore(storeId)
                     navController.navigate(Screen.Catalog.createRoute(storeId))
                 },
+                onNavigateToHistory = { navController.navigate(Screen.OrderTracking.route) },
                 onBack = { navController.popBackStack() }
             )
         }

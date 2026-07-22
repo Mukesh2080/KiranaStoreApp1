@@ -60,6 +60,19 @@ class SellerViewModel @Inject constructor(
         _currentStoreId.value = null
     }
 
+    fun deleteStoreAccount() {
+        val storeId = _currentStoreId.value ?: return
+        viewModelScope.launch {
+            try {
+                repository.deleteStoreData(storeId)
+                logout()
+                _uiState.value = _uiState.value.copy(successMessage = "Account and data deleted successfully")
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(errorMessage = e.message ?: "Failed to delete account")
+            }
+        }
+    }
+
     private val _uiState = MutableStateFlow(SellerUiState())
     val uiState = _uiState.asStateFlow()
 

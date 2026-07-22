@@ -7,11 +7,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -27,6 +28,7 @@ import com.village.generalstore.domain.model.Store
 fun StoreListScreen(
     viewModel: CustomerViewModel,
     onStoreSelected: (String) -> Unit,
+    onNavigateToHistory: () -> Unit,
     onBack: () -> Unit
 ) {
     val stores by viewModel.stores.collectAsState()
@@ -38,6 +40,11 @@ fun StoreListScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onNavigateToHistory) {
+                        Icon(Icons.Default.Person, contentDescription = "My Orders")
                     }
                 }
             )

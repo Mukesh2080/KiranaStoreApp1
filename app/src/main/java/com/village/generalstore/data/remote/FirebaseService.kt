@@ -269,4 +269,39 @@ class FirebaseService @Inject constructor(
             }
         awaitClose { listener.remove() }
     }
+
+    suspend fun deleteCustomerData(customerId: String) {
+        // 1. Delete all orders from this customer
+        val ordersSnapshot = ordersCollection.whereEqualTo("customerId", customerId).get().await()
+        val batch = firestore.batch()
+        ordersSnapshot.documents.forEach { doc ->
+            batch.delete(doc.reference)
+        }
+        
+        // 2. Delete customer document
+        batch.delete(customersCollection.document(customerId))
+        
+        batch.commit().await()
+    }
+
+    suspend fun deleteStoreData(storeId: String) {
+        val batch = firestore.batch()
+        
+        // 1. Delete all products from this store
+        val productsSnapshot = productsCollection.whereEqualTo("storeId", storeId).get().await()
+        productsSnapshot.documents.forEach { doc ->
+            batch.delete(doc.reference)
+        }
+        
+        // 2. Delete all orders from this store
+        val ordersSnapshot = ordersCollection.whereEqualTo("storeId", storeId).get().await()
+        ordersSnapshot.documents.forEach { doc ->
+            batch.delete(doc.reference)
+        }
+        
+        // 3. Delete store document
+        batch.delete(storesCollection.document(storeId))
+        
+        batch.commit().await()
+    }
 }

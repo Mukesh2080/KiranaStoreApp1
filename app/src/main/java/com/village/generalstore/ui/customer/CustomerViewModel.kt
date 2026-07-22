@@ -61,6 +61,23 @@ class CustomerViewModel @Inject constructor(
         }
     }
 
+    fun logout() {
+        sharedPreferences.edit().remove("customer_id").apply()
+        _currentCustomerId.value = null
+    }
+
+    fun deleteCustomerAccount() {
+        val customerId = _currentCustomerId.value ?: return
+        viewModelScope.launch {
+            try {
+                repository.deleteCustomerData(customerId)
+                logout()
+            } catch (e: Exception) {
+                // Handle error
+            }
+        }
+    }
+
     private val _isDelivery = MutableStateFlow(false)
     val isDelivery = _isDelivery.asStateFlow()
 

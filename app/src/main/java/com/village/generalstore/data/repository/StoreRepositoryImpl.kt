@@ -225,4 +225,18 @@ class StoreRepositoryImpl @Inject constructor(
     override suspend fun getOrCreateCustomer(name: String, phone: String): String {
         return firebaseService.getOrCreateCustomer(name, phone)
     }
+
+    override suspend fun deleteCustomerData(customerId: String) {
+        firebaseService.deleteCustomerData(customerId)
+        // Also clear local cart if it belongs to this customer (though cart isn't strictly tied to ID in local DB)
+        cartDao.clearCart()
+    }
+
+    override suspend fun deleteStoreData(storeId: String) {
+        // 1. Delete remotely
+        firebaseService.deleteStoreData(storeId)
+        
+        // 2. Cleanup local product cache for this store
+        productDao.deleteProductsStore(storeId)
+    }
 }

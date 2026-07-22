@@ -118,6 +118,7 @@ fun DashboardScreen(
                 },
                 actions = {
                     var showMenu by remember { mutableStateOf(false) }
+                    var showDeleteDialog by remember { mutableStateOf(false) }
 
                     IconButton(onClick = onNavigateToInventory) {
                         Icon(Icons.Default.List, contentDescription = "Inventory")
@@ -145,7 +146,46 @@ fun DashboardScreen(
                                     )
                                 }
                             )
+                            DropdownMenuItem(
+                                text = { Text("Delete Store & Account", color = MaterialTheme.colorScheme.error) },
+                                onClick = {
+                                    showMenu = false
+                                    showDeleteDialog = true
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            )
                         }
+                    }
+
+                    if (showDeleteDialog) {
+                        androidx.compose.material3.AlertDialog(
+                            onDismissRequest = { showDeleteDialog = false },
+                            title = { Text("Delete Account?") },
+                            text = { Text("This will permanently delete your store, all products, and all order history. This action cannot be undone.") },
+                            confirmButton = {
+                                TextButton(
+                                    onClick = {
+                                        showDeleteDialog = false
+                                        viewModel.deleteStoreAccount()
+                                        onLogout()
+                                    },
+                                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                                ) {
+                                    Text("Delete Everything")
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showDeleteDialog = false }) {
+                                    Text("Cancel")
+                                }
+                            }
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

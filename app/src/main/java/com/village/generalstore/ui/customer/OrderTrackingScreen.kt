@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,6 +37,10 @@ fun OrderTrackingScreen(
     onBack: () -> Unit
 ) {
     val orders by viewModel.customerOrders.collectAsState()
+    val currentCustomerId by viewModel.currentCustomerId.collectAsState()
+
+    var showMenu by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -44,6 +49,35 @@ fun OrderTrackingScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    if (currentCustomerId != null) {
+                        Box {
+                            IconButton(onClick = { showMenu = true }) {
+                                Icon(Icons.Default.MoreVert, contentDescription = "Options")
+                            }
+                            DropdownMenu(
+                                expanded = showMenu,
+                                onDismissRequest = { showMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Logout") },
+                                    onClick = {
+                                        showMenu = false
+                                        viewModel.logout()
+                                        onBack()
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Delete My Data", color = MaterialTheme.colorScheme.error) },
+                                    onClick = {
+                                        showMenu = false
+                                        showDeleteDialog = true
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             )
@@ -98,6 +132,31 @@ fun OrderTrackingScreen(
                 onLogin = { name, phone ->
                     viewModel.loginCustomer(name, phone)
                     showLoginDialog = false
+                }
+            )
+        }
+
+        if (showDeleteDialog) {
+            AlertDialog(
+                onDismissRequest = { showDeleteDialog = false },
+                title = { Text("Delete All Data?") },
+                text = { Text("This will permanently delete your profile and all your order history. This action cannot be undone.") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showDeleteDialog = false
+                            viewModel.deleteCustomerAccount()
+                            onBack()
+                        },
+                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Text("Delete Everything")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteDialog = false }) {
+                        Text("Cancel")
+                    }
                 }
             )
         }
